@@ -29,6 +29,7 @@ htmlcov/
 data/**/*
 !data/**/
 !data/**/.gitkeep
+archive/non_tsla_data/
 outputs/**/*
 !outputs/**/
 !outputs/**/.gitkeep

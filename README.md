@@ -1,20 +1,20 @@
 # LLM-Alpha-Forecasting
 
-LLM-based sentiment signals from news, Reddit, and SEC filings are combined
-with technical indicators (RSI, ADX, volatility, volume, and momentum) and
-fed into tree-based models to generate buy/no-buy signals. Out-of-sample tests
-assess whether this alternative data adds predictive power and produces alpha.
+This project collects daily market data and alternative data for one or more
+assets. Each asset has its own directory under `data/<ticker>/` so the same
+collection scripts can be reused for TSLA, SPY, AAPL, or another supported
+ticker.
 
 ## Project Structure
 
 ```text
 LLM-Alpha-Forecasting/
 ├── data/
-│   ├── prices/
-│   ├── reddit/
-│   ├── sec/
-│   └── news/
-├── notebooks/
+│   └── <ticker>/
+│       ├── daily_finance_metrics.csv
+│       ├── news.csv
+│       ├── sec_filings.csv
+│       └── twitter.csv
 ├── src/
 │   ├── data_collection/
 │   ├── sentiment/
@@ -22,67 +22,88 @@ LLM-Alpha-Forecasting/
 │   ├── models/
 │   └── evaluation/
 ├── outputs/
-├── requirements.txt
-└── README.md
+└── requirements.txt
 ```
 
-## Data Collection
-
-Install the dependency into the project environment:
+Install dependencies into the existing project environment:
 
 ```powershell
 .\LLMAFvenv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-The collector in `src/data_collection/collect_sources.py` does not score text
-with an LLM. It only downloads raw records so that collection, inspection, and
-sentiment labeling remain separate.
+## Collection Scripts
 
-### News
+All collectors take the asset identity as an input and default their output to
+`data/<ticker>/`. Override `--output` when a different location is required.
 
-GDELT provides free news metadata without an API key. It includes titles,
-URLs, source domains, timestamps, language, and an aggregate tone field. It
-does not reliably provide full article text.
+### Daily Prices
 
-```powershell
-.\LLMAFvenv\Scripts\python.exe src/data_collection/collect_sources.py news `
-	--query '("Apple" OR AAPL) sourcelang:english' `
-	--max-records 100
-```
-
-Output: `data/news/news.csv`
-
-### SEC filings
-
-SEC EDGAR is free. Set a descriptive contact address before making requests:
+Yahoo Finance data includes daily OHLCV, adjusted close, dividends, split
+ratios, currency, and provenance fields.
 
 ```powershell
-$env:SEC_USER_AGENT = "Your Name research your-email@example.com"
-.\LLMAFvenv\Scripts\python.exe src/data_collection/collect_sources.py sec `
-	--cik 320193 `
-	--forms 10-K 10-Q 8-K `
-	--max-records 100
+.\LLMAFvenv\Scripts\python.exe src/data_collection/collect_prices.py `
+    --ticker TSLA `
+    --start-date 2015-01-01 `
+    --end-date 2020-12-31
 ```
 
-Output: `data/sec/filings.csv`. Each record includes a primary-document URL;
-download and parse filing text separately so the raw URL and original metadata
-remain available.
+Output: `data/tsla/daily_finance_metrics.csv`. Use the same command with another ticker
+to create its parallel asset directory.
 
-### Reddit
+### SEC Filings
 
-Reddit requires an OAuth application and credentials. Set these environment
-variables in your shell rather than committing them:
+Set `SEC_USER_AGENT` in `.env`, then provide the ticker and its SEC CIK:
 
 ```powershell
-$env:REDDIT_CLIENT_ID = "..."
-$env:REDDIT_CLIENT_SECRET = "..."
-$env:REDDIT_USERNAME = "..."
-$env:REDDIT_PASSWORD = "..."
-.\LLMAFvenv\Scripts\python.exe src/data_collection/collect_sources.py reddit `
-	--subreddit stocks `
-	--query 'AAPL OR Apple' `
-	--max-records 100
+.\LLMAFvenv\Scripts\python.exe src/data_collection/ingest_sec_filings.py sec `
+    --ticker TSLA `
+    --cik 1318605 `
+    --forms 10-K 10-Q 8-K `
+    --start-date 2015-01-01 `
+    --end-date 2020-12-31 `
+    --max-records 0
 ```
 
-Output: `data/reddit/posts.jsonl`. Review Reddit's current API terms and rate
-limits before collecting at scale.
+Output: `data/tsla/sec_filings.csv`. The collector follows SEC archived
+submission files and recent filings, but stores metadata and document URLs;
+filing text can be downloaded and parsed separately.
+
+### Historical News
+
+The News Category Dataset contains headlines and short descriptions. The
+importer receives the ticker and matching company terms explicitly, then keeps
+only matching records within the requested date range.
+
+```powershell
+.\LLMAFvenv\Scripts\python.exe -c "import kagglehub; print(kagglehub.dataset_download('rmisra/news-category-dataset'))"
+.\LLMAFvenv\Scripts\python.exe src/data_collection/ingest_news_category.py `
+    --input 'path\to\News_Category_Dataset_v3.json' `
+    --ticker TSLA `
+    --terms Tesla TSLA 'Elon Musk' `
+    --start-date 2016-01-01 `
+    --end-date 2020-04-02 `
+    --limit 0
+```
+
+Output: `data/tsla/news.csv`. The dataset is licensed CC BY 4.0; retain its
+attribution when using it.
+
+### Historical Tweets
+
+The Kaggle NASDAQ tweet dataset contains relational `Company_Tweet.csv` and
+`Tweet.csv` files. The importer joins them, selects the requested ticker, and
+preserves tweet text, timestamps, authors, and engagement counts.
+
+```powershell
+.\LLMAFvenv\Scripts\python.exe -c "import kagglehub; print(kagglehub.dataset_download('omermetinn/tweets-about-the-top-companies-from-2015-to-2020'))"
+.\LLMAFvenv\Scripts\python.exe src/data_collection/ingest_tweets.py `
+    --input 'path\to\kaggle\dataset\folder' `
+    --ticker TSLA `
+    --start-date 2015-01-01 `
+    --end-date 2020-12-31 `
+    --limit 0
+```
+
+Output: `data/tsla/twitter.csv`. Sentiment scoring is intentionally separate
+from ingestion and belongs in the sentiment/features stages.
