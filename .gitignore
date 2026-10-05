@@ -1,0 +1,64 @@
+# Python virtual environments
+LLMAFvenv/
+.venv/
+venv/
+env/
+
+# Python caches and generated files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Jupyter temporary files
+.ipynb_checkpoints/
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Data files and generated research artifacts
+# Keep directory placeholders tracked while ignoring local contents.
+data/**/*
+!data/**/
+!data/**/.gitkeep
+archive/non_tsla_data/
+outputs/**/*
+!outputs/**/
+!outputs/**/.gitkeep
+
+# Common model and experiment artifacts
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.parquet
+*.feather
+
+# Logs and local databases
+*.log
+*.sqlite
+*.sqlite3
+
+# VS Code and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Local tooling and temporary files
+*.tmp
+*.temp
